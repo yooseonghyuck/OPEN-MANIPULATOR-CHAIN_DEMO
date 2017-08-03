@@ -1,0 +1,24 @@
+joint1 :
+   return_delay_time     :  1
+   operating_mode        :  3
+   homing_offset         :  0
+
+joint2 :
+   return_delay_time     :  1
+   operating_mode        :  3
+   homing_offset         :  0
+
+joint3 :
+   return_delay_time     :  1
+   operating_mode        :  3
+   homing_offset         :  0
+
+joint4 :
+   return_delay_time     :  1
+   operating_mode        :  3
+   homing_offset         :  0
+
+grip_joint :
+   return_delay_time     :  1
+   operating_mode        :  3
+   homing_offset         :  0

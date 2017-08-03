@@ -1,0 +1,16 @@
+<?xml version="1.0" ?>
+
+<launch>    
+
+    <param name="gazebo"                   value="false"     type="bool"/>
+    <param name="gazebo_robot_name"        value="open_manipulator_chain" />
+
+    <param name="offset_table"             value="$(find open_manipulator_manager)/config/offset.yaml"/>
+    <param name="robot_file_path"          value="$(find open_manipulator_manager)/config/OPEN_MANIPULATOR_CHAIN.robot"/>
+    <param name="init_file_path"           value="$(find open_manipulator_manager)/config/dxl_init.yaml"/>
+      
+    <!-- Manipulator Manager -->
+    <node name="open_manipulator_manager" pkg="open_manipulator_manager" type="open_manipulator_manager" output="screen"/>
+    
+</launch>
+

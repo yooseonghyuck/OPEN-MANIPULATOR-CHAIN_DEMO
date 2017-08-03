@@ -1,0 +1,12 @@
+# time parameter
+
+mov_time : 3.0		# movement time
+
+# target pose [deg]
+
+tar_pose :
+  1 : 0.0	# joint1
+  2 : -45.0	# joint2
+  3 : 0.0	# joint3
+  4 : 45.0	# joint4
+  5 : 0.0	# grip_joint # -60 [deg]

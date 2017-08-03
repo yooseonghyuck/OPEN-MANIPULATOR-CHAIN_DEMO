@@ -1,0 +1,987 @@
+#include "open_manipulator_base_module/base_module.h"
+
+using namespace open_manipulator;
+
+BaseModule::BaseModule()
+  : control_cycle_sec_(0.008),
+    is_moving_(false),
+    ik_solving_(false)
+{
+  enable_       = false;
+  module_name_  = "base_module";
+  control_mode_ = robotis_framework::PositionControl;
+
+  /* arm */
+  result_["joint1"]  = new robotis_framework::DynamixelState();
+  result_["joint2"]  = new robotis_framework::DynamixelState();
+  result_["joint3"]   = new robotis_framework::DynamixelState();
+  result_["joint4"]   = new robotis_framework::DynamixelState();
+  result_["grip_joint"]  = new robotis_framework::DynamixelState();
+
+  /* arm */
+  joint_name_to_id_["joint1"] = 1;
+  joint_name_to_id_["joint2"] = 2;
+  joint_name_to_id_["joint3"]  = 3;
+  joint_name_to_id_["joint4"]  = 4;
+  joint_name_to_id_["grip_joint"] = 5;
+
+  /* parameter */
+  present_joint_position_   = Eigen::VectorXd::Zero(MAX_JOINT_ID+1);
+  goal3_joint_position_     = Eigen::VectorXd::Zero(MAX_JOINT_ID+1);
+  goal2_joint_position_     = Eigen::VectorXd::Zero(MAX_JOINT_ID+1);
+  goal_joint_position_      = Eigen::VectorXd::Zero(MAX_JOINT_ID+1);
+  init_joint_position_      = Eigen::VectorXd::Zero(MAX_JOINT_ID+1);
+
+//  ik_id_start_  = 0;
+//  ik_id_end_    = 0;
+
+  ik_target_position_   = Eigen::MatrixXd::Zero(3,1);
+//  ik_weight_            = Eigen::MatrixXd::Zero(MAX_JOINT_ID+1, 1);
+//  ik_weight_.fill(1.0);
+
+  robotis_                   = new KinematicsDynamics(ARM);
+
+  joint_value_ = 0.0;
+  flag = 0;
+  flag2 = 0;
+  count = 0;
+  mov_time_ = 0.7;
+}
+
+BaseModule::~BaseModule()
+{
+  queue_thread_.join();
+}
+
+void BaseModule::initialize(const int control_cycle_msec, robotis_framework::Robot *robot)
+{
+
+  control_cycle_sec_ = control_cycle_msec * 0.001;
+  queue_thread_      = boost::thread(boost::bind(&BaseModule::queueThread, this));
+
+  ros::NodeHandle ros_node;
+
+  /* publish topics */
+
+  // for gui
+  status_msg_pub_     = ros_node.advertise<robotis_controller_msgs::StatusMsg>("/robotis/status", 1);
+  movement_done_pub_  = ros_node.advertise<std_msgs::String>("/robotis/movement_done", 1);
+
+
+  //for sub
+  write_msg_pub       = ros_node.advertise<std_msgs::String>("/robotis/base/write_msg",100);
+  write_status_pub    = ros_node.advertise<std_msgs::String>("/robotis/base/write_status_msg",100);
+  present_pos_pub     = ros_node.advertise<geometry_msgs::Pose>("/robotis/base/present_pos_msg",100);
+
+  work_status_pub     = ros_node.advertise<std_msgs::String>("/robotis/base/next_work_msg",100);
+
+  joint_state_ = new BaseModule();
+  
+
+//  std::string _path = ros::package::getPath("thormang3_manipulation_module") + "/config/ik_weight.yaml";
+//  parseData(_path);
+}
+
+//void BaseModule::parseData(const std::string &path)
+//{
+//  YAML::Node doc;
+//  try
+//  {
+//    // load yaml
+//    doc = YAML::LoadFile(path.c_str());
+//  } catch (const std::exception& e)
+//  {
+//    ROS_ERROR("Fail to load yaml file.");
+//    return;
+//  }
+
+//  YAML::Node ik_weight_node = doc["weight_value"];
+//  for (YAML::iterator it = ik_weight_node.begin(); it != ik_weight_node.end(); ++it)
+//  {
+//    int     id    = it->first.as<int>();
+
+//    double  value = it->second.as<double>();
+
+//    ik_weight_.coeffRef(id, 0) = value;
+//  }
+//}
+
+void BaseModule::parseIniPoseData(const std::string &path)
+{
+  YAML::Node doc;
+
+if(flag==0)
+{
+
+  try
+  {
+
+    // load yaml
+
+    doc = YAML::LoadFile(path.c_str());
+
+  } catch (const std::exception& e)
+  {
+    ROS_ERROR("Fail to load yaml file.");
+    return;
+  }
+
+  // parse movement time
+  double mov_time = doc["mov_time"].as<double>();
+  mov_time_ = mov_time;
+  mov_time_ = 3.0;
+  // parse target pose
+  YAML::Node tar_pose_node = doc["tar_pose"];
+
+
+  for (YAML::iterator it = tar_pose_node.begin(); it != tar_pose_node.end(); ++it)
+  {
+
+    int     id    = it->first.as<int>();
+    double  value = it->second.as<double>();
+
+    init_joint_position_(id) = value * DEGREE2RADIAN;
+
+  }
+   flag++;
+}
+
+  all_time_steps_ = int(mov_time_ / control_cycle_sec_) + 1;
+
+  goal_joint_tra_.resize(all_time_steps_, MAX_JOINT_ID + 1);
+
+}
+void BaseModule::generationTraj()
+{
+  double mov_time = mov_time_;
+
+
+  for (int id = 1; id <= MAX_JOINT_ID; id++)
+  {
+   ROS_INFO("%f",joint_state_->joint_pose_msg_.position[id-1]);
+    goal2_joint_position_(id) =  joint_state_->joint_pose_msg_.position[id-1];
+
+ //   goal_joint_position_(id) =  goal_joint_position_(id) * DEGREE2RADIAN;
+    all_time_steps_ = int(mov_time / control_cycle_sec_) + 1;
+    goal_joint_tra_.resize(all_time_steps_, MAX_JOINT_ID + 1);
+
+  }
+
+
+}
+
+void BaseModule::queueThread()
+{
+  ros::NodeHandle     ros_node;
+  ros::CallbackQueue  callback_queue;
+
+  ros_node.setCallbackQueue(&callback_queue);
+
+  /* subscribe topics */
+  ros::Subscriber ini_pose_msg_sub = ros_node.subscribe("/robotis/base/ini_pose_msg", 5,
+                                                        &BaseModule::initPoseMsgCallback, this);
+  ros::Subscriber joint_pose_msg_sub = ros_node.subscribe("/robotis/base/joint_pose_msg", 5,
+                                                          &BaseModule::jointPosMsgCallback, this);
+  ros::Subscriber kinematics_pose_msg_sub = ros_node.subscribe("/robotis/base/kinematics_pose_msg", 5,
+                                                               &BaseModule::kinematicsPoseMsgCallback, this);
+
+  ros::Subscriber work_status_sub       = ros_node.subscribe("robotis/base/work_status_msg", 100,
+                                                            &BaseModule::WorkStatusMsgCallback,this );
+
+  /* service */
+//  ros::ServiceServer get_joint_pose_server = ros_node.advertiseService("/robotis/manipulation/get_joint_pose",
+//                                                                       &BaseModule::getJointPoseCallback, this);
+//  ros::ServiceServer get_kinematics_pose_server = ros_node.advertiseService("/robotis/manipulation/get_kinematics_pose",
+//                                                                            &BaseModule::getKinematicsPoseCallback, this);
+
+  ros::WallDuration duration(control_cycle_sec_);
+  while(ros_node.ok())
+    callback_queue.callAvailable(duration);
+}
+void BaseModule::WorkStatusMsgCallback(const std_msgs::String::ConstPtr& msg)
+{
+
+  if(msg->data == "a")
+  {
+    std_msgs::String messg;
+    messg.data = "a";
+    work_status_pub.publish(messg);
+  }
+  else if(msg->data == "b")
+  {
+    std_msgs::String messg;
+    messg.data = "b";
+    work_status_pub.publish(messg);
+  }
+  else if(msg->data == "c")
+  {
+    std_msgs::String messg;
+    messg.data = "c";
+    work_status_pub.publish(messg);
+  }
+  else if(msg->data == "d")
+  {
+    std_msgs::String messg;
+    messg.data = "d";
+    work_status_pub.publish(messg);
+  }
+  else if(msg->data == "e")
+  {
+    std_msgs::String messg;
+    messg.data = "e";
+    work_status_pub.publish(messg);
+  }
+  else if(msg->data == "f")
+  {
+    std_msgs::String messg;
+    messg.data = "f";
+    work_status_pub.publish(messg);
+  }
+  else if(msg->data == "g")
+  {
+    std_msgs::String messg;
+    messg.data = "g";
+    work_status_pub.publish(messg);
+  }
+  else if(msg->data == "h")
+  {
+    std_msgs::String messg;
+    messg.data = "h";
+    work_status_pub.publish(messg);
+  }
+  else if(msg->data == "i")
+  {
+    std_msgs::String messg;
+    messg.data = "i";
+    work_status_pub.publish(messg);
+  }
+  else if(msg->data == "j")
+  {
+    std_msgs::String messg;
+    messg.data = "j";
+    work_status_pub.publish(messg);
+  }
+  else if(msg->data == "k")
+  {
+    std_msgs::String messg;
+    messg.data = "k";
+    work_status_pub.publish(messg);
+  }
+  else if(msg->data == "l")
+  {
+    std_msgs::String messg;
+    messg.data = "l";
+    work_status_pub.publish(messg);
+  }
+  else if(msg->data == "m")
+  {
+    std_msgs::String messg;
+    messg.data = "m";
+    work_status_pub.publish(messg);
+  }
+  else if(msg->data == "n")
+  {
+    std_msgs::String messg;
+    messg.data = "n";
+    work_status_pub.publish(messg);
+  }
+  else if(msg->data == "o")
+  {
+    std_msgs::String messg;
+    messg.data = "o";
+    work_status_pub.publish(messg);
+  }
+  else if(msg->data == "p")
+  {
+    std_msgs::String messg;
+    messg.data = "p";
+    work_status_pub.publish(messg);
+  }
+  else if(msg->data == "q")
+  {
+    std_msgs::String messg;
+    messg.data = "q";
+    work_status_pub.publish(messg);
+  }
+  else if(msg->data == "r")
+  {
+    std_msgs::String messg;
+    messg.data = "r";
+    work_status_pub.publish(messg);
+  }
+  else if(msg->data == "s")
+  {
+    std_msgs::String messg;
+    messg.data = "s";
+    work_status_pub.publish(messg);
+  }
+  else if(msg->data == "t")
+  {
+    std_msgs::String messg;
+    messg.data = "t";
+    work_status_pub.publish(messg);
+  }
+  else if(msg->data == "u")
+  {
+    std_msgs::String messg;
+    messg.data = "u";
+    work_status_pub.publish(messg);
+  }
+  else if(msg->data == "v")
+  {
+    std_msgs::String messg;
+    messg.data = "v";
+    work_status_pub.publish(messg);
+  }
+  else if(msg->data == "w")
+  {
+    std_msgs::String messg;
+    messg.data = "w";
+    work_status_pub.publish(messg);
+  }
+  else if(msg->data == "x")
+  {
+    std_msgs::String messg;
+    messg.data = "x";
+    work_status_pub.publish(messg);
+  }
+  else if(msg->data == "y")
+  {
+    std_msgs::String messg;
+    messg.data = "y";
+    work_status_pub.publish(messg);
+  }
+  else if(msg->data == "z")
+  {
+    std_msgs::String messg;
+    messg.data = "z";
+    work_status_pub.publish(messg);
+  }
+}
+
+void BaseModule::initPoseMsgCallback(const std_msgs::String::ConstPtr& msg)
+{
+
+
+  if (enable_ == false)
+    return;
+
+  if (is_moving_ == false)
+  {
+    if (msg->data == "ini_pose")
+    {
+
+      // parse initial pose
+
+      if(flag==0)
+      {
+      ini_pose_path = ros::package::getPath("open_manipulator_base_module") + "/config/ini_pose.yaml";
+      }
+
+
+      parseIniPoseData(ini_pose_path);
+
+
+
+    //  ROS_INFO("err PMCB");
+      traj_generate_tread_ = new boost::thread(boost::bind(&BaseModule::initPoseTrajGenerateProc, this));
+
+      delete traj_generate_tread_;
+    }
+  }
+  else
+  {
+    ROS_INFO("previous task is alive");
+  }
+
+//  movement_done_msg_.data = "manipulation_init";
+
+  return;
+}
+void BaseModule::kinematicsPoseMsgCallback(const geometry_msgs::Pose::ConstPtr& msg)
+{
+    mov_time_ = 0.7;
+  if (enable_ == false)
+    return;
+
+  goal_kinematics_pose_msg_ = *msg;
+
+  ik_id_start_  = 0;
+  ik_id_end_    = END_LINK;
+
+  if (is_moving_ == false)
+  {
+    traj_generate_tread_ = new boost::thread(boost::bind(&BaseModule::taskTrajGenerateProc, this));
+    delete traj_generate_tread_;
+  }
+  else
+  {
+    ROS_INFO("previous task is alive");
+  }
+
+  return;
+}
+void BaseModule::jointPosMsgCallback(const sensor_msgs::JointState::ConstPtr& msg)
+{
+    mov_time_ = 0.7;
+  int joint_size = msg->name.size();
+//  BaseModule::mov_time_ = 3.0;
+   if (enable_ == false)
+       return;
+
+   if(is_moving_ == false)
+     {
+
+       joint_state_->joint_pose_msg_ = *msg;
+
+
+       generationTraj();
+
+       traj_generate_tread_ = new boost::thread(boost::bind(&BaseModule::goalPoseTrahGenerationProc, this));
+       delete traj_generate_tread_;
+     }
+   else
+   {
+     ROS_INFO("previous task is alive");
+   }
+
+ return;
+}
+/*
+void BaseModule::generateJointTrajProcess()
+{
+  if (enable_ == false)
+    return;
+  double tol = 35 * DEGREE2RADIAN;
+  double mov_time_ = 2.0;
+
+  double max_diff, abs_diff;
+  max_diff = 0.0;
+
+  for (int name_index = 0; name_index < robotis_->joint_pose_msg_.name.size(); name_index++)
+  {
+
+    double ini_value;
+    double tar_value;
+
+    if (manipulator_->manipulator_link_data_[id])
+  }
+}
+*/
+//bool BaseModule::getJointPoseCallback(thormang3_manipulation_module_msgs::GetJointPose::Request &req,
+//                                              thormang3_manipulation_module_msgs::GetJointPose::Response &res)
+//{로봇팔 로봇팔
+//  if (enable_ == false)
+//    return false;
+
+//  for (int name_index = 1; name_index <= MAX_JOINT_ID; name_index++)
+//  {
+//    if (robotis_->thormang3_link_data_[name_index]->name_ == req.joint_name)
+//    {
+//      res.joint_value = goal_joint_position_(name_index);
+//      return true;
+//    }
+//  }
+
+//  return false;
+//}
+
+//bool BaseModule::getKinematicsPoseCallback(thormang3_manipulation_module_msgs::GetKinematicsPose::Request &req,로봇팔
+//                                                   thormang3_manipulation_module_msgs::GetKinematicsPose::Response &res)
+//{
+//  if (enable_ == false)
+//    return false;
+
+//  int end_index;
+
+//  if (req.group_name == "left_arm")
+//    end_index = ID_L_ARM_END;
+//  else if (req.group_name == "right_arm")
+//    end_index = ID_R_ARM_END;
+//  else if (req.group_name == "left_arm_with_torso")
+//    end_index = ID_L_ARM_END;
+//  else if (req.group_name == "right_arm_with_torso")
+//    end_index = ID_R_ARM_END;
+//  else
+//    return false;
+
+//  res.group_pose.position.x = robotis_->thormang3_link_data_[end_index]->position_.coeff(0, 0);
+//  res.group_pose.position.y = robotis_->thormang3_link_data_[end_index]->position_.coeff(1, 0);
+//  res.group_pose.position.z = robotis_->thormang3_link_data_[end_index]->position_.coeff(2, 0);
+
+//  Eigen::Quaterniond quaternion = robotis_framework::convertRotationToQuaternion(robotis_->thormang3_link_data_[end_index]->orientation_);
+
+//  res.group_pose.orientation.w = quaternion.w();
+//  res.group_pose.orientation.x = quaternion.x();
+//  res.group_pose.orientation.y = quaternion.y();
+//  res.group_pose.orientation.z = quaternion.z();
+
+//  return true;
+//}
+
+//void BaseModule::kinematicsPoseMsgCallback(const thormang3_manipulation_module_msgs::KinematicsPose::ConstPtr& msg)
+//{
+//  if (enable_ == false)
+//    return;
+
+//  movement_done_msg_.data = "manipulation";
+
+//  goal_kinematics_pose_msg_ = *msg;
+
+//  if (goal_kinematics_pose_msg_.name == "left_arm")
+//  {
+//    ik_id_start_  = ID_L_ARM_START;
+//    ik_id_end_    = ID_L_ARM_END;
+//  }
+//  else if (goal_kinematics_pose_msg_.name == "right_arm")
+//  {
+//    ik_id_start_  = ID_R_ARM_START;
+//    ik_id_end_    = ID_R_ARM_END;
+//  }
+//  else if (goal_kinematics_pose_msg_.name == "left_arm_with_torso")
+//  {
+//    ik_id_start_  = ID_TORSO;
+//    ik_id_end_    = ID_L_ARM_END;
+//  }
+//  else if (goal_kinematics_pose_msg_.name == "right_arm_with_torso")
+//  {
+//    ik_id_start_  = ID_TORSO;
+//    ik_id_end_    = ID_R_ARM_END;
+//  }
+
+//  if (is_moving_ == false)
+//  {
+//    traj_generate_tread_ = new boost::thread(boost::bind(&BaseModule::taskTrajGenerateProc, this));
+//    delete traj_generate_tread_;
+//  }
+//  else
+//  {
+//    ROS_INFO("previous task is alive");
+//  }
+
+//  return;
+//}
+
+//void BaseModule::jointPoseMsgCallback(const thormang3_manipulation_module_msgs::JointPose::ConstPtr& msg)
+//{
+//  if (enable_ == false)
+//    return;
+
+//  goal_joint_pose_msg_ = *msg;
+
+//  if (is_moving_ == false)
+//  {
+//    traj_generate_tread_ = new boost::thread(boost::bind(&BaseModule::jointTrajGenerateProc, this));
+//    delete traj_generate_tread_;
+//  }
+//  else
+//    ROS_INFO("previous task is alive");
+
+//  return;
+//}
+
+void BaseModule::initPoseTrajGenerateProc()
+{
+  double ini_value=0 ;
+  double tar_value=0 ;
+  for (int id = 1; id <= MAX_JOINT_ID; id++)
+  {
+
+
+    ini_value = goal_joint_position_(id);
+    tar_value = init_joint_position_(id);
+
+    Eigen::MatrixXd tra = robotis_framework::calcMinimumJerkTra(ini_value, 0.0, 0.0,
+                                                                tar_value, 0.0, 0.0,
+                                                                control_cycle_sec_,
+                                                                mov_time_);
+
+    goal_joint_tra_.block(0, id, all_time_steps_, 1) = tra;
+  }
+
+  cnt_        = 0;
+  is_moving_  = true;
+
+
+
+  ROS_INFO("[start] send trajectory");
+}
+void BaseModule::goalPoseTrahGenerationProc()
+{
+
+  double ini_value=0 ;
+  double tar_value=0 ;
+
+
+  for (int id = 1; id <= MAX_JOINT_ID; id++)
+  {
+
+
+    ini_value = goal_joint_position_(id);
+    tar_value = goal2_joint_position_(id);
+
+
+    Eigen::MatrixXd tra = robotis_framework::calcMinimumJerkTra(ini_value, 0.0, 0.0,
+                                                                 tar_value, 0.0, 0.0,
+                                                                 control_cycle_sec_,
+                                                                 mov_time_);
+    goal_joint_tra_.block(0, id, all_time_steps_, 1) = tra;
+  }
+
+
+
+
+  cnt_       = 0;
+  is_moving_ = true;
+
+
+
+  ROS_INFO("[start] send");
+}
+
+//void BaseModule::jointTrajGenerateProc()
+//{
+//  if (goal_joint_pose_msg_.time <= 0.0)
+//  {
+//    /* set movement time */
+//    double tol        = 10 * DEGREE2RADIAN; // rad per sec
+//    double mov_time   = 2.0;
+
+//    int    id    = joint_name_to_id_[goal_joint_pose_msg_.name];
+
+//    double ini_value  = goal_joint_position_(id);
+//    double tar_value  = goal_joint_pose_msg_.value;
+//    double diff       = fabs(tar_value - ini_value);
+
+//    mov_time_ = diff / tol;
+//    int _all_time_steps = int(floor((mov_time_ / control_cycle_sec_) + 1.0));
+//    mov_time_ = double(_all_time_steps - 1) * control_cycle_sec_;
+
+//    if (mov_time_ < mov_time)
+//      mov_time_ = mov_time;
+//  }
+//  else
+//  {
+//    mov_time_ = goal_joint_pose_msg_.time;
+//  }
+
+//  all_time_steps_ = int(mov_time_ / control_cycle_sec_) + 1;
+
+//  goal_joint_tra_.resize(all_time_steps_, MAX_JOINT_ID + 1);
+
+//  /* calculate joint trajectory */
+//  for (int id = 1; id <= MAX_JOINT_ID; id++)
+//  {
+//    double ini_value = goal_joint_position_(id);
+//    double tar_value = goal_joint_position_(id);
+
+//    if (robotis_->thormang3_link_data_[id]->name_ == goal_joint_pose_msg_.name)
+//      tar_value = goal_joint_pose_msg_.value;
+
+//    Eigen::MatrixXd tra = robotis_framework::calcMinimumJerkTra(ini_value, 0.0, 0.0, tar_value, 0.0, 0.0,
+//                                                                control_cycle_sec_,
+//                                                                mov_time_);
+
+//    goal_joint_tra_.block(0, id, all_time_steps_, 1) = tra;
+//  }
+
+//  cnt_        = 0;
+//  is_moving_  = true;
+
+//  ROS_INFO("[start] send trajectory");
+//}
+
+void BaseModule::taskTrajGenerateProc()
+{
+//  if (goal_kinematics_pose_msg_.time <= 0.0)
+//  {
+//    /* set movement time */
+//    double tol      = 0.1; // m per sec
+//    double mov_time = 2.0;
+
+//    double diff     = sqrt(
+//                          pow(robotis_->link_data_[ik_id_end_]->position_.coeff(0,0) - goal_kinematics_pose_msg_.pose.position.x, 2)
+//                        + pow(robotis_->link_data_[ik_id_end_]->position_.coeff(1,0) - goal_kinematics_pose_msg_.pose.position.y, 2)
+//                        + pow(robotis_->link_data_[ik_id_end_]->position_.coeff(2,0) - goal_kinematics_pose_msg_.pose.position.z, 2)
+//                      );
+
+//    mov_time_ = diff / tol;
+//    int all_time_steps = int(floor((mov_time_ / control_cycle_sec_) + 1.0));
+//    mov_time_ = double(all_time_steps - 1) * control_cycle_sec_;
+
+//    if (mov_time_ < mov_time)
+//      mov_time_ = mov_time;
+//  }
+//  else
+//  {
+//    mov_time_ = goal_kinematics_pose_msg_.time;
+//  }
+  ROS_INFO("2-1");
+//  mov_time_ = 2.0;
+
+  all_time_steps_ = int(mov_time_ / control_cycle_sec_) + 1;
+  goal_task_tra_.resize(all_time_steps_, 3);
+
+  Eigen::VectorXd target = Eigen::VectorXd::Zero(3);
+  target[0] = goal_kinematics_pose_msg_.position.x;
+  target[1] = goal_kinematics_pose_msg_.position.y;
+  target[2] = goal_kinematics_pose_msg_.position.z;
+
+  /* calculate trajectory */
+  for (int dim = 0; dim < 3; dim++)
+  {
+
+
+    double ini_value = robotis_->link_data_[ik_id_end_]->position_.coeff(dim, 0);
+//    double tar_value;
+//    if (dim == 0)
+//      tar_value = goal_kinematics_pose_msg_.pose.position.x;
+//    else if (dim == 1)
+//      tar_value = goal_kinematics_pose_msg_.pose.position.y;
+//    else if (dim == 2)
+//      tar_value = goal_kinematics_pose_msg_.pose.position.z;
+
+    Eigen::MatrixXd tra = robotis_framework::calcMinimumJerkTra(ini_value, 0.0, 0.0,
+                                                                target[dim], 0.0, 0.0,
+                                                                control_cycle_sec_,
+                                                                mov_time_);
+
+    goal_task_tra_.block(0, dim, all_time_steps_, 1) = tra;
+  }
+
+  cnt_          = 0;
+  is_moving_    = true;
+  ik_solving_   = true;
+
+  ROS_INFO("[start] send trajectory");
+
+
+}
+
+void BaseModule::setInverseKinematics(int cnt)
+{
+  for (int dim = 0; dim < 3; dim++)
+    ik_target_position_.coeffRef(dim, 0) = goal_task_tra_.coeff(cnt, dim);
+
+//  Eigen::Quaterniond start_quaternion = robotis_framework::convertRotationToQuaternion(start_rotation);
+
+//  Eigen::Quaterniond target_quaternion(goal_kinematics_pose_msg_.pose.orientation.w,
+//                                       goal_kinematics_pose_msg_.pose.orientation.x,
+//                                       goal_kinematics_pose_msg_.pose.orientation.y,
+//                                       goal_kinematics_pose_msg_.pose.orientation.z);
+
+//  double count = (double) cnt / (double) all_time_steps_;
+
+//  Eigen::Quaterniond _quaternion = start_quaternion.slerp(count, target_quaternion);
+
+//  ik_target_rotation_ = robotis_framework::convertQuaternionToRotation(_quaternion);
+}
+
+void BaseModule::process(std::map<std::string, robotis_framework::Dynamixel *> dxls,
+                                 std::map<std::string, double> sensors)
+{
+
+
+  if (enable_ == false)
+    return;
+
+  /*----- write curr position -----*/
+  for (std::map<std::string, robotis_framework::DynamixelState *>::iterator state_iter = result_.begin();
+       state_iter != result_.end(); state_iter++)
+  {
+    std::string joint_name = state_iter->first;
+
+    robotis_framework::Dynamixel *dxl = NULL;
+    std::map<std::string, robotis_framework::Dynamixel*>::iterator dxl_it = dxls.find(joint_name);
+    if (dxl_it != dxls.end())
+      dxl = dxl_it->second;
+    else
+      continue;
+
+    double joint_curr_position = dxl->dxl_state_->present_position_;
+    double joint_goal_position = dxl->dxl_state_->goal_position_;
+
+    present_joint_position_(joint_name_to_id_[joint_name]) = joint_curr_position;
+    goal_joint_position_(joint_name_to_id_[joint_name]) = joint_goal_position;
+    goal3_joint_position_(joint_name_to_id_[joint_name])= joint_goal_position;
+  }
+
+
+  /*----- forward kinematics -----*/
+  for (int id = 1; id <= MAX_JOINT_ID; id++)
+  robotis_->link_data_[id]->joint_angle_ = goal3_joint_position_(id);
+//  ROS_INFO("%f", goal3_joint_position_(id));
+
+  robotis_->forwardKinematics(0);
+
+//  PRINT_MAT(robotis_->link_data_[END_LINK]->position_);
+//  ROS_INFO("--");
+
+
+  /* ----- send trajectory ----- */
+
+  if (is_moving_ == true)
+  {
+    if (cnt_ == 0)
+    {
+
+      publishStatusMsg(robotis_controller_msgs::StatusMsg::STATUS_INFO, "Start Trajectory");
+      status_msg.data = "Start";
+      write_status_pub.publish(status_msg);
+//      ik_start_rotation_ = robotis_->thormang3_link_data_[ik_id_end_]->orientation_;
+    }
+
+   if (ik_solving_ == true)
+    {
+      /* ----- inverse kinematics ----- */
+      setInverseKinematics(cnt_);
+//      setInverseKinematics(cnt_, ik_start_rotation_);
+
+      int     max_iter    = 30;
+      double  ik_tol      = 1e-3;
+      bool    ik_success  = robotis_->inverseKinematicsOnlyPosition(ik_id_end_,
+                                                                    ik_target_position_,
+                                                                    max_iter, ik_tol);
+
+      if (ik_success == true)
+      {
+        for(int id =1; id <= MAX_JOINT_ID; id++)
+
+
+        for (int id = 1; id <= MAX_JOINT_ID; id++)
+        {
+          goal3_joint_position_(id) = robotis_->link_data_[id]->joint_angle_;
+          goal_joint_position_(id) =  goal3_joint_position_(id);
+        }
+
+      }
+      else
+      {
+        ROS_INFO("----- ik failed -----");
+        ROS_INFO("[end] send trajectory");
+
+
+//        publishStatusMsg(robotis_controller_msgs::StatusMsg::STATUS_INFO, "IK Failed");
+
+
+         is_moving_  = false;
+         ik_solving_   = false;
+         cnt_        = 0;
+
+
+
+//        movement_done_msg_.data = "manipulation_fail";
+//        movement_done_pub_.publish(movement_done_msg_);
+//        movement_done_msg_.data = "";
+        }
+      }
+     else
+      {
+
+          for (int id = 1; id <= MAX_JOINT_ID; id++)
+          {
+          goal_joint_position_(id) = goal_joint_tra_(cnt_, id);
+
+          count = id;
+
+
+          }
+
+
+
+
+       }
+   cnt_++;
+  }
+
+
+
+
+  /*----- set joint data -----*/
+  for (std::map<std::string, robotis_framework::DynamixelState *>::iterator state_iter = result_.begin();
+      state_iter != result_.end(); state_iter++)
+  {
+    std::string joint_name = state_iter->first;
+
+
+          result_[joint_name]->goal_position_ = goal_joint_position_(joint_name_to_id_[joint_name]);
+
+
+  }
+
+  /*---------- initialize count number ----------*/
+  if (is_moving_ == true)
+  {
+    if (cnt_ >= all_time_steps_)
+    {
+      ROS_INFO("[end] send trajectory");
+
+
+
+      publishStatusMsg(robotis_controller_msgs::StatusMsg::STATUS_INFO, "End Trajectory");
+
+      status_msg.data = "Finsh";
+      write_status_pub.publish(status_msg);
+
+      geometry_msgs::Pose present_pos_msg;
+
+      present_pos_msg.position.x = goal_kinematics_pose_msg_.position.x;
+      present_pos_msg.position.y = goal_kinematics_pose_msg_.position.y;
+      present_pos_msg.position.z = goal_kinematics_pose_msg_.position.z;
+      present_pos_pub.publish(present_pos_msg);
+
+
+      is_moving_  = false;
+      ik_solving_ = false;
+      cnt_        = 0;
+
+//      movement_done_pub_.publish(movement_done_msg_);
+//      movement_done_msg_.data = "";
+
+//      if (arm_angle_display_ == true)
+//      {
+//        ROS_INFO("l_arm_sh_p1 : %f", goal_joint_position_(joint_name_to_id_["l_arm_sh_p1"]) * RADIAN2DEGREE );
+//        ROS_INFO("l_arm_sh_r  : %f", goal_joint_position_(joint_name_to_id_["l_arm_sh_r"])  * RADIAN2DEGREE );
+//        ROS_INFO("l_arm_sh_p2 : %f", goal_joint_position_(joint_name_to_id_["l_arm_sh_p2"]) * RADIAN2DEGREE );
+//        ROS_INFO("l_arm_el_y  : %f", goal_joint_position_(joint_name_to_id_["l_arm_el_y"])  * RADIAN2DEGREE );
+//        ROS_INFO("l_arm_wr_r  : %f", goal_joint_position_(joint_name_to_id_["l_arm_wr_r"])  * RADIAN2DEGREE );
+//        ROS_INFO("l_arm_wr_y  : %f", goal_joint_position_(joint_name_to_id_["l_arm_wr_y"])  * RADIAN2DEGREE );
+//        ROS_INFO("l_arm_wr_p  : %f", goal_joint_position_(joint_name_to_id_["l_arm_wr_p"])  * RADIAN2DEGREE );
+
+//        ROS_INFO("r_arm_sh_p1 : %f", goal_joint_position_(joint_name_to_id_["r_arm_sh_p1"]) * RADIAN2DEGREE );
+//        ROS_INFO("r_arm_sh_r  : %f", goal_joint_position_(joint_name_to_id_["r_arm_sh_r"])  * RADIAN2DEGREE );
+//        ROS_INFO("r_arm_sh_p2 : %f", goal_joint_position_(joint_name_to_id_["r_arm_sh_p2"]) * RADIAN2DEGREE );
+//        ROS_INFO("r_arm_el_y  : %f", goal_joint_position_(joint_name_to_id_["r_arm_el_y"])  * RADIAN2DEGREE );
+//        ROS_INFO("r_arm_wr_r  : %f", goal_joint_position_(joint_name_to_id_["r_arm_wr_r"])  * RADIAN2DEGREE );
+//        ROS_INFO("r_arm_wr_y  : %f", goal_joint_position_(joint_name_to_id_["r_arm_wr_y"])  * RADIAN2DEGREE );
+//        ROS_INFO("r_arm_wr_p  : %f", goal_joint_position_(joint_name_to_id_["r_arm_wr_p"])  * RADIAN2DEGREE );
+//      }
+
+    }
+  }
+}
+
+void BaseModule::stop()
+{
+  is_moving_  = false;
+  ik_solving_   = false;
+  cnt_        = 0;
+
+  return;
+}
+
+bool BaseModule::isRunning()
+{
+  return is_moving_;
+}
+
+void BaseModule::publishStatusMsg(unsigned int type, std::string msg)
+{
+  robotis_controller_msgs::StatusMsg status;
+  status.header.stamp = ros::Time::now();
+  status.type         = type;
+  status.module_name  = "Base";
+  status.status_msg   = msg;
+
+  status_msg_pub_.publish(status);
+}
