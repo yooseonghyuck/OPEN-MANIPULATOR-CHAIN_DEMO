@@ -19,6 +19,7 @@ void OpenManipulatorSub::initialize()
 
   point_kinematics_msg_pub = ros_node_.advertise<geometry_msgs::Pose>("/robotis/base/kinematics_pose_msg",100);
 
+  color_write_sta_pub_ = ros_node_.advertise<std_msgs::String>("/robotis/sub/color_sta_msgs",100);
  //write_msg_pub      = ros_node_.advertise<std_msgs::String>("/robotis/base/write_msg",100);
   ini_msg_pub         = ros_node_.advertise<std_msgs::String>("/robotis/base/ini_pose_msg", 100);
 
@@ -36,6 +37,8 @@ void OpenManipulatorSub::initialize()
   present_pos_msg_sub = ros_node_.subscribe("/robotis/base/present_pos_msg", 100, &OpenManipulatorSub::PresentPositionMsgCallback, this);
 
   next_msg_sub        = ros_node_.subscribe("/robotis/base/next_work_msg",100, &OpenManipulatorSub::NextMsgCallback,this);
+
+  color_msgs_sub      = ros_node_.subscribe("/robotis/sub/color_msgs",100, &OpenManipulatorSub::ColorMsgCallback,this);
   /**value**/
 
 
@@ -47,8 +50,248 @@ void OpenManipulatorSub::initialize()
   flag_ver=0;
   count_num2 = 0;
   test =0;
+  red_cnt=0;
+  blue_cnt=0;
+}
+void OpenManipulatorSub::ColorMsgCallback(const std_msgs::String::ConstPtr &msg)
+{
+  if(msg->data == "red")
+  {
+
+    ROS_INFO("1");
+   if(red_cnt==0)
+   {
+     write_flag = 1;
+     ROS_INFO("1");
+     Alp_msg.data = "r";
+
+     if(cnt==0 && flag ==0)
+     {
+       if(test==0)
+       {
+         kinematics_msg.position.x = 0.076;
+         kinematics_msg.position.y = -0.05;
+         kinematics_msg.position.z = 0.102;
+
+         point_kinematics_msg_pub.publish(kinematics_msg);
+       }
+
+      std_msgs::String work_msg;
+      work_msg.data = "r";
+      if(flag==0)
+      {
+      work_status_pub.publish(work_msg);
+      }
+      ROS_INFO("send");
+      cnt++;
+      write_flag = 0;
+
+      }
+      test ++;
+      red_cnt++;
+    }
+   else if(red_cnt==1)
+   {
+     write_flag = 1;
+     ROS_INFO("1");
+     Alp_msg.data = "e";
+
+     if(cnt==0 && flag ==0)
+     {
+       if(test==0)
+       {
+         kinematics_msg.position.x = 0.076;
+         kinematics_msg.position.y = -0.05;
+         kinematics_msg.position.z = 0.102;
+
+         point_kinematics_msg_pub.publish(kinematics_msg);
+       }
+
+      std_msgs::String work_msg;
+      work_msg.data = "e";
+      if(flag==0)
+      {
+      work_status_pub.publish(work_msg);
+      }
+      ROS_INFO("send");
+      cnt++;
+      write_flag = 0;
+
+      }
+      test ++;
+      red_cnt++;
+   }
+   else if(red_cnt==2)
+   {
+     write_flag = 1;
+     ROS_INFO("1");
+     Alp_msg.data = "d";
+
+     if(cnt==0 && flag ==0)
+     {
+       if(test==0)
+       {
+         kinematics_msg.position.x = 0.076;
+         kinematics_msg.position.y = -0.05;
+         kinematics_msg.position.z = 0.102;
+
+         point_kinematics_msg_pub.publish(kinematics_msg);
+       }
+
+      std_msgs::String work_msg;
+      work_msg.data = "d";
+      if(flag==0)
+      {
+      work_status_pub.publish(work_msg);
+      }
+      ROS_INFO("send");
+      cnt++;
+      write_flag = 0;
+
+      }
+      test ++;
+      red_cnt==0;
+
+   }
+
+
+ }
+  if(msg->data == "blue")
+  {
+
+    ROS_INFO("1");
+   if(blue_cnt==0)
+   {
+     write_flag = 1;
+     ROS_INFO("1");
+     Alp_msg.data = "b";
+
+     if(cnt==0 && flag ==0)
+     {
+       if(test==0)
+       {
+         kinematics_msg.position.x = 0.076;
+         kinematics_msg.position.y = -0.05;
+         kinematics_msg.position.z = 0.102;
+
+         point_kinematics_msg_pub.publish(kinematics_msg);
+       }
+
+      std_msgs::String work_msg;
+      work_msg.data = "b";
+      if(flag==0)
+      {
+      work_status_pub.publish(work_msg);
+      }
+      ROS_INFO("send");
+      cnt++;
+      write_flag = 0;
+
+      }
+      test ++;
+      blue_cnt++;
+    }
+   else if(blue_cnt==1)
+   {
+     write_flag = 1;
+     ROS_INFO("1");
+     Alp_msg.data = "l";
+
+     if(cnt==0 && flag ==0)
+     {
+       if(test==0)
+       {
+         kinematics_msg.position.x = 0.076;
+         kinematics_msg.position.y = -0.05;
+         kinematics_msg.position.z = 0.102;
+
+         point_kinematics_msg_pub.publish(kinematics_msg);
+       }
+
+      std_msgs::String work_msg;
+      work_msg.data = "l";
+      if(flag==0)
+      {
+      work_status_pub.publish(work_msg);
+      }
+      ROS_INFO("send");
+      cnt++;
+      write_flag = 0;
+
+      }
+      test ++;
+      blue_cnt++;
+   }
+   else if(blue_cnt==2)
+   {
+     write_flag = 1;
+     ROS_INFO("1");
+     Alp_msg.data = "u";
+
+     if(cnt==0 && flag ==0)
+     {
+       if(test==0)
+       {
+         kinematics_msg.position.x = 0.076;
+         kinematics_msg.position.y = -0.05;
+         kinematics_msg.position.z = 0.102;
+
+         point_kinematics_msg_pub.publish(kinematics_msg);
+       }
+
+      std_msgs::String work_msg;
+      work_msg.data = "u";
+      if(flag==0)
+      {
+      work_status_pub.publish(work_msg);
+      }
+      ROS_INFO("send");
+      cnt++;
+      write_flag = 0;
+
+      }
+      test ++;
+      blue_cnt==0;
+
+   }
+   else if(blue_cnt==3)
+   {
+     write_flag = 1;
+     ROS_INFO("1");
+     Alp_msg.data = "e";
+
+     if(cnt==0 && flag ==0)
+     {
+       if(test==0)
+       {
+         kinematics_msg.position.x = 0.076;
+         kinematics_msg.position.y = -0.05;
+         kinematics_msg.position.z = 0.102;
+
+         point_kinematics_msg_pub.publish(kinematics_msg);
+       }
+
+      std_msgs::String work_msg;
+      work_msg.data = "e";
+      if(flag==0)
+      {
+      work_status_pub.publish(work_msg);
+      }
+      ROS_INFO("send");
+      cnt++;
+      write_flag = 0;
+
+      }
+      test ++;
+      blue_cnt==0;
+
+   }
+
+
+ }
 
 }
+
 void OpenManipulatorSub::NextMsgCallback(const std_msgs::String::ConstPtr &msg)
 {
   if(msg->data =="a")
@@ -1202,8 +1445,7 @@ ROS_INFO("%d",write_flag);
 
 void OpenManipulatorSub::process()
 {
-
-
+ROS_INFO("%d",red_cnt);
   ////////////////////////// write a //////////////////////////////////////////////
 
   if(Alp_msg.data == "a")
@@ -1537,7 +1779,11 @@ void OpenManipulatorSub::process()
          }
 
 
-         if(test==2)
+         if(test ==1)
+         {
+           kinematics_msg.position.z = 0.041 - test*0.0004;
+         }
+         else if(test==2)
          {
            kinematics_msg.position.z = 0.0445 - test*0.0009 ;
          }
@@ -1762,6 +2008,13 @@ void OpenManipulatorSub::process()
     std_msgs::String work_msg;
     work_msg.data = "b";
     work_status_pub.publish(work_msg);
+
+    if(blue_cnt>0)
+    {
+      std_msgs::String color_write_sta_msg;
+      color_write_sta_msg.data ="finish_blue";
+      color_write_sta_pub_.publish(color_write_sta_msg);
+    }
     write_flag =0;
     cnt =0;
   }
@@ -2087,6 +2340,8 @@ void OpenManipulatorSub::process()
            work_msg.data = "d";
            work_status_pub.publish(work_msg);
            write_flag = 0;
+
+
          //  write_flag =0;
          //  cnt =0;
             cnt++;
@@ -2111,7 +2366,7 @@ void OpenManipulatorSub::process()
    {
      ROS_INFO("5");
 
-     kinematics_msg.position.x = present_position.position.x ;
+     kinematics_msg.position.x = present_position.position.x  - 0.0013 - test*0.0002;
      if(test>2)
      {
       kinematics_msg.position.y = present_position.position.y + 0.0040;
@@ -2150,7 +2405,7 @@ void OpenManipulatorSub::process()
    {
      ROS_INFO("7");
 
-     kinematics_msg.position.x = present_position.position.x +0.008;
+     kinematics_msg.position.x = present_position.position.x +0.01;
      kinematics_msg.position.y = present_position.position.y;
      kinematics_msg.position.z = present_position.position.z -0.002;
 
@@ -2201,7 +2456,7 @@ void OpenManipulatorSub::process()
      ROS_INFO("10");
 
 
-     kinematics_msg.position.x = present_position.position.x -0.0065;
+     kinematics_msg.position.x = present_position.position.x -0.0045;
 
      kinematics_msg.position.y = present_position.position.y;
      kinematics_msg.position.z = present_position.position.z +0.001;
@@ -2218,8 +2473,8 @@ void OpenManipulatorSub::process()
    {
      ROS_INFO("11");
 
-     kinematics_msg.position.x = present_position.position.x +0.003;
-     kinematics_msg.position.y = present_position.position.y +0.004;
+     kinematics_msg.position.x = present_position.position.x +0.002;
+     kinematics_msg.position.y = present_position.position.y +0.003;
      kinematics_msg.position.z = present_position.position.z +0.001;
      point_kinematics_msg_pub.publish(kinematics_msg);
 
@@ -2230,11 +2485,26 @@ void OpenManipulatorSub::process()
      cnt++;
    }
    else if(cnt==10 && write_flag ==1 && flag ==0)
+      {
+        ROS_INFO("12");
+
+        kinematics_msg.position.x = present_position.position.x -0.0015;
+        kinematics_msg.position.y = present_position.position.y +0.004;
+        kinematics_msg.position.z = present_position.position.z +0.001;
+        point_kinematics_msg_pub.publish(kinematics_msg);
+
+        std_msgs::String work_msg;
+        work_msg.data = "d";
+        work_status_pub.publish(work_msg);
+        write_flag =0;
+        cnt++;
+      }
+   else if(cnt==10 && write_flag ==1 && flag ==0)
    {
      ROS_INFO("13");
 
      kinematics_msg.position.x = present_position.position.x + 0.001;
-     kinematics_msg.position.y = present_position.position.y +0.0014 + 0.0005*test;
+     kinematics_msg.position.y = present_position.position.y +0.0003 + 0.0005*test;
      kinematics_msg.position.z = present_position.position.z +0.001;
 
      point_kinematics_msg_pub.publish(kinematics_msg);
@@ -2250,8 +2520,8 @@ void OpenManipulatorSub::process()
    {
      ROS_INFO("14");
 
-     kinematics_msg.position.x = present_position.position.x +0.0065;
-     kinematics_msg.position.y = present_position.position.y +0.0012;
+     kinematics_msg.position.x = present_position.position.x +0.0055;
+     kinematics_msg.position.y = present_position.position.y +0.001;
      kinematics_msg.position.z = present_position.position.z -0.001;
 
      point_kinematics_msg_pub.publish(kinematics_msg);
@@ -2343,6 +2613,7 @@ void OpenManipulatorSub::process()
      std_msgs::String work_msg;
      work_msg.data = "d";
      work_status_pub.publish(work_msg);
+     red_cnt =0;
      write_flag =0;
      cnt =0;
    }
@@ -2355,7 +2626,7 @@ void OpenManipulatorSub::process()
          ROS_INFO("3");
          if(test==1)
          {
-           kinematics_msg.position.x =  present_position.position.x +0.005;
+           kinematics_msg.position.x =  present_position.position.x +0.0033;
          }
          else if(test ==2)
          {
@@ -2422,7 +2693,11 @@ void OpenManipulatorSub::process()
    {
      ROS_INFO("5");
 
-     kinematics_msg.position.x = present_position.position.x +0.014 - test*0.0012;
+     if(test==1 || test ==5)
+     {
+       kinematics_msg.position.x = present_position.position.x +0.04 - test*0.0004;
+     }
+     kinematics_msg.position.x = present_position.position.x +0.01 - test*0.0007;
      kinematics_msg.position.y = present_position.position.y +0.005;
      kinematics_msg.position.z = present_position.position.z;
 
@@ -2440,7 +2715,7 @@ void OpenManipulatorSub::process()
 
      kinematics_msg.position.x = present_position.position.x;
      kinematics_msg.position.y = present_position.position.y;
-     kinematics_msg.position.z = present_position.position.z- 0.007;
+     kinematics_msg.position.z = present_position.position.z- 0.008;
 
      point_kinematics_msg_pub.publish(kinematics_msg);
 
@@ -2495,7 +2770,7 @@ void OpenManipulatorSub::process()
 
      if(test<2)
      {
-        kinematics_msg.position.x = present_position.position.x -0.0015;
+        kinematics_msg.position.x = present_position.position.x -0.0013;
      }
      else if(test==2)
      {
@@ -2503,7 +2778,7 @@ void OpenManipulatorSub::process()
      }
      else
      {
-        kinematics_msg.position.x = present_position.position.x -0.0045;
+        kinematics_msg.position.x = present_position.position.x -0.0025;
      }
      kinematics_msg.position.y = present_position.position.y -0.001;
      kinematics_msg.position.z = present_position.position.z -0.001;
@@ -2522,14 +2797,14 @@ void OpenManipulatorSub::process()
 
      if(test<2)
      {
-        kinematics_msg.position.x = present_position.position.x -0.006;
+        kinematics_msg.position.x = present_position.position.x -0.002;
      }
      else
      {
-       kinematics_msg.position.x = present_position.position.x -0.008;
+       kinematics_msg.position.x = present_position.position.x -0.004;
      }
-     kinematics_msg.position.y = present_position.position.y;
-     kinematics_msg.position.z = present_position.position.z -0.001;
+     kinematics_msg.position.y = present_position.position.y +0.0005*test;
+     kinematics_msg.position.z = present_position.position.z +0.001;
 
      point_kinematics_msg_pub.publish(kinematics_msg);
 
@@ -2545,40 +2820,35 @@ void OpenManipulatorSub::process()
 
      if(test >2)
      {
-        kinematics_msg.position.x = present_position.position.x -0.0010;
+        kinematics_msg.position.x = present_position.position.x -0.008 +0.0007*test;
      }
      else
      {
-       kinematics_msg.position.x = present_position.position.x -0.0015;
+       kinematics_msg.position.x = present_position.position.x -0.001;
      }
 
-     kinematics_msg.position.y = present_position.position.y +0.0005;
+     kinematics_msg.position.y = present_position.position.y +0.001;
 
 
-     kinematics_msg.position.z = present_position.position.z -0.001;
+     kinematics_msg.position.z = present_position.position.z +0.001;
 
      point_kinematics_msg_pub.publish(kinematics_msg);
 
      std_msgs::String work_msg;
      work_msg.data = "e";
      work_status_pub.publish(work_msg);
+
+
+
      write_flag =0;
      cnt++;
    }
    else if(cnt==10 && write_flag ==1 && flag ==0)
    {
      ROS_INFO("12");
-     if(test>2)
-     {
-        kinematics_msg.position.x = present_position.position.x -0.004;
-     }
-     else
-     {
-       kinematics_msg.position.x = present_position.position.x -0.008;
-     }
 
-      kinematics_msg.position.y = present_position.position.y;
-
+     kinematics_msg.position.x = present_position.position.x -0.0025;
+     kinematics_msg.position.y = present_position.position.y +0.0025;
      kinematics_msg.position.z = present_position.position.z -0.001;
 
      point_kinematics_msg_pub.publish(kinematics_msg);
@@ -2593,24 +2863,15 @@ void OpenManipulatorSub::process()
    {
      ROS_INFO("13");
 
-     kinematics_msg.position.x = present_position.position.x -0.0025;
-     kinematics_msg.position.y = present_position.position.y +0.0025;
-     kinematics_msg.position.z = present_position.position.z -0.001;
-
-     point_kinematics_msg_pub.publish(kinematics_msg);
-
-     std_msgs::String work_msg;
-     work_msg.data = "e";
-     work_status_pub.publish(work_msg);
-     write_flag =0;
-     cnt++;
-   }
-   else if(cnt==12 && write_flag ==1 && flag ==0)
-   {
-     ROS_INFO("14");
-
      kinematics_msg.position.x = present_position.position.x; // +? -?
-     kinematics_msg.position.y = present_position.position.y +0.003 +0.0005*test;
+     if(test <3)
+     {
+        kinematics_msg.position.y = present_position.position.y +0.0045 -0.0003*test;
+     }
+     else
+     {
+        kinematics_msg.position.y = present_position.position.y +0.0035 -0.0003*test;
+     }
      kinematics_msg.position.z = present_position.position.z -0.001;
 
      point_kinematics_msg_pub.publish(kinematics_msg);
@@ -2625,8 +2886,8 @@ void OpenManipulatorSub::process()
    {
      ROS_INFO("14");
 
-     kinematics_msg.position.x = present_position.position.x +0.0085;
-     kinematics_msg.position.y = present_position.position.y +0.0015 +0.0005*test;
+     kinematics_msg.position.x = present_position.position.x +0.0040 +0.0003*test;
+     kinematics_msg.position.y = present_position.position.y +0.001 +0.0003*test;
      kinematics_msg.position.z = present_position.position.z -0.001;
 
      point_kinematics_msg_pub.publish(kinematics_msg);
@@ -2641,29 +2902,13 @@ void OpenManipulatorSub::process()
    {
      ROS_INFO("15");
 
-     kinematics_msg.position.x = present_position.position.x +0.0045;
-     kinematics_msg.position.y = present_position.position.y +0.0005;
-     kinematics_msg.position.z = present_position.position.z +0.001;
-
-     point_kinematics_msg_pub.publish(kinematics_msg);
-
-     std_msgs::String work_msg;
-     work_msg.data = "e";
-     work_status_pub.publish(work_msg);
-     write_flag =0;
-     cnt++;
-
-   }
-   else if(cnt==14 && write_flag ==1 && flag ==0)
-   {
-     ROS_INFO("16");
-
-     kinematics_msg.position.x = present_position.position.x +0.009; // +? -?
-     kinematics_msg.position.y = present_position.position.y -0.008 -0.0005*test;
+     kinematics_msg.position.x = present_position.position.x +0.001 +0.0008; // +? -?
+     kinematics_msg.position.y = present_position.position.y -0.01 -0.0003*test;
      kinematics_msg.position.z = present_position.position.z +0.004;
 
      point_kinematics_msg_pub.publish(kinematics_msg);
 
+
      std_msgs::String work_msg;
      work_msg.data = "e";
      work_status_pub.publish(work_msg);
@@ -2671,10 +2916,10 @@ void OpenManipulatorSub::process()
      cnt++;
    }
 
-   else if(cnt==15 && write_flag ==1 && flag ==0)
+   else if(cnt==14 && write_flag ==1 && flag ==0)
    {
     // ROS_INFO("13");
-     ROS_INFO("17");
+     ROS_INFO("16");
     //   kinematics_msg.position.x = present_position.position.x;
      if(test <4)
      {
@@ -2748,13 +2993,26 @@ void OpenManipulatorSub::process()
 
      point_kinematics_msg_pub.publish(kinematics_msg);
 
-     std_msgs::String work_msg;
-     work_msg.data = "e";
-     work_status_pub.publish(work_msg);
 
-     write_flag =0;
-     cnt =0;
-   }
+       std_msgs::String work_msg;
+       work_msg.data = "e";
+       work_status_pub.publish(work_msg);
+
+      if(blue_cnt==0 && red_cnt>0)
+      {
+        std_msgs::String color_write_sta_msg;
+        color_write_sta_msg.data ="finish_red";
+        color_write_sta_pub_.publish(color_write_sta_msg);
+      }
+      else if(red_cnt==0)
+      {
+        blue_cnt=0;
+      }
+
+      write_flag =0;
+      cnt =0;
+     }
+
  }
  else if(Alp_msg.data == "f")////////////////////////////////////////////////////////////
  {
@@ -4408,7 +4666,7 @@ void OpenManipulatorSub::process()
       }
       else if(test ==2)
       {
-        kinematics_msg.position.x =  present_position.position.x +0.008;
+        kinematics_msg.position.x =  present_position.position.x +0.013;
       }
       else if(test ==7)
       {
@@ -4425,7 +4683,7 @@ void OpenManipulatorSub::process()
       }
       else if(test ==2)
       {
-        kinematics_msg.position.y =  present_position.position.y +0.0011;
+        kinematics_msg.position.y =  present_position.position.y +0.0014;
       }
       else
       {
@@ -4562,6 +4820,13 @@ void OpenManipulatorSub::process()
      std_msgs::String work_msg;
      work_msg.data = "l";
      work_status_pub.publish(work_msg);
+
+     if(blue_cnt>0)
+     {
+      std_msgs::String color_write_sta_msg;
+      color_write_sta_msg.data ="finish_blue";
+      color_write_sta_pub_.publish(color_write_sta_msg);
+     }
 
      write_flag =0;
      cnt =0;
@@ -6182,9 +6447,9 @@ void OpenManipulatorSub::process()
     {
       ROS_INFO("8");
 
-      kinematics_msg.position.x = present_position.position.x -0.0085;
+      kinematics_msg.position.x = present_position.position.x -0.0085 -test*0.0005;
       kinematics_msg.position.y = present_position.position.y +0.0020;
-      kinematics_msg.position.z = present_position.position.z -0.0005;
+      kinematics_msg.position.z = present_position.position.z +0.001;
 
       point_kinematics_msg_pub.publish(kinematics_msg);
 
@@ -6215,7 +6480,7 @@ void OpenManipulatorSub::process()
     {
       ROS_INFO("10");
 
-      kinematics_msg.position.x = present_position.position.x +0.004;
+      kinematics_msg.position.x = present_position.position.x +0.006;
       kinematics_msg.position.y = present_position.position.y -0.004;
       kinematics_msg.position.z = present_position.position.z +0.01;
 
@@ -6304,12 +6569,28 @@ void OpenManipulatorSub::process()
 
      point_kinematics_msg_pub.publish(kinematics_msg);
 
+     if(red_cnt==0)
+     {
      std_msgs::String work_msg;
      work_msg.data = "r";
      work_status_pub.publish(work_msg);
 
      write_flag =0;
      cnt =0;
+     }
+     else if(red_cnt>0)
+     {
+       std_msgs::String work_msg;
+       work_msg.data = "r";
+       work_status_pub.publish(work_msg);
+
+      std_msgs::String color_write_sta_msg;
+      color_write_sta_msg.data ="finish_red";
+      color_write_sta_pub_.publish(color_write_sta_msg);
+
+      write_flag =0;
+      cnt =0;
+     }
     }
   }
   if(Alp_msg.data == "s")
@@ -6946,6 +7227,11 @@ void OpenManipulatorSub::process()
         std_msgs::String work_msg;
         work_msg.data = "u";
         work_status_pub.publish(work_msg);
+
+        std_msgs::String color_write_sta_msg;
+        color_write_sta_msg.data ="finish_blue";
+        color_write_sta_pub_.publish(color_write_sta_msg);
+
         write_flag = 0;
       //  write_flag =0;
       //  cnt =0;
@@ -7191,9 +7477,15 @@ void OpenManipulatorSub::process()
      std_msgs::String work_msg;
      work_msg.data = "u";
      work_status_pub.publish(work_msg);
-
+     if(blue_cnt>0)
+     {
+      std_msgs::String color_write_sta_msg;
+      color_write_sta_msg.data ="finish_blue";
+      color_write_sta_pub_.publish(color_write_sta_msg);
+     }
      write_flag =0;
      cnt =0;
+     blue_cnt++;
     }
   }
 
