@@ -40,6 +40,7 @@ public:
 
   void kinematicsPoseMsgCallback(const geometry_msgs::Pose::ConstPtr& msg);
   void WorkStatusMsgCallback(const std_msgs::String::ConstPtr& msg);
+  void ColorWriteStatusCallback(const std_msgs::String::ConstPtr& msg);
 //  bool getJointPoseCallback(thormang3_manipulation_module_msgs::GetJointPose::Request &req,
 //                            thormang3_manipulation_module_msgs::GetJointPose::Response &res);
 //  bool getKinematicsPoseCallback(thormang3_manipulation_module_msgs::GetKinematicsPose::Request &req,
@@ -88,7 +89,7 @@ private:
   ros::Publisher  write_msg_pub;
   ros::Publisher  write_status_pub;
   ros::Publisher  present_pos_pub;
-
+  ros::Publisher  color_msgs_pub;
 
   /* joint state */
   Eigen::VectorXd present_joint_position_;

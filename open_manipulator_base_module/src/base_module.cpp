@@ -75,6 +75,8 @@ void BaseModule::initialize(const int control_cycle_msec, robotis_framework::Rob
 
   work_status_pub     = ros_node.advertise<std_msgs::String>("/robotis/base/next_work_msg",100);
 
+  color_msgs_pub      = ros_node.advertise<std_msgs::String>("/robotis/sub/color_msgs",100);
+
   joint_state_ = new BaseModule();
   
 
@@ -188,6 +190,8 @@ void BaseModule::queueThread()
   ros::Subscriber work_status_sub       = ros_node.subscribe("robotis/base/work_status_msg", 100,
                                                             &BaseModule::WorkStatusMsgCallback,this );
 
+  ros::Subscriber color_write_sta_sub   = ros_node.subscribe("/robotis/sub/color_sta_msgs",100,
+                                                             &BaseModule::ColorWriteStatusCallback,this);
   /* service */
 //  ros::ServiceServer get_joint_pose_server = ros_node.advertiseService("/robotis/manipulation/get_joint_pose",
 //                                                                       &BaseModule::getJointPoseCallback, this);
@@ -198,6 +202,25 @@ void BaseModule::queueThread()
   while(ros_node.ok())
     callback_queue.callAvailable(duration);
 }
+
+void BaseModule::ColorWriteStatusCallback(const std_msgs::String::ConstPtr& msg)
+{ROS_INFO("what");
+    if(msg->data =="finish_red")
+    {
+
+      std_msgs::String messg;
+      messg.data = "red";
+      color_msgs_pub.publish(messg);
+    }
+    else if(msg->data =="finish_blue")
+    {
+
+      std_msgs::String messg;
+      messg.data = "blue";
+      color_msgs_pub.publish(messg);
+    }
+}
+
 void BaseModule::WorkStatusMsgCallback(const std_msgs::String::ConstPtr& msg)
 {
 
@@ -814,8 +837,8 @@ void BaseModule::process(std::map<std::string, robotis_framework::Dynamixel *> d
 
   robotis_->forwardKinematics(0);
 
-//  PRINT_MAT(robotis_->link_data_[END_LINK]->position_);
-//  ROS_INFO("--");
+  PRINT_MAT(robotis_->link_data_[END_LINK]->position_);
+  ROS_INFO("--");
 
 
   /* ----- send trajectory ----- */

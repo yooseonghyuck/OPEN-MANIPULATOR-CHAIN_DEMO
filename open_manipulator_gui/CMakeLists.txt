@@ -14,7 +14,6 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   geometry_msgs
   robotis_controller_msgs
-  manipulator_h_base_module_msgs
   cmake_modules
   eigen_conversions
 )

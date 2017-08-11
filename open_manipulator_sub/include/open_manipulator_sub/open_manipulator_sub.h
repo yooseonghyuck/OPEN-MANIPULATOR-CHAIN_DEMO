@@ -38,6 +38,8 @@ public:
   ros::Publisher point_kinematics_msg_pub;
   ros::Publisher point_write_msg_pub;
   ros::Publisher grip_joint_sub_pub_;
+  ros::Publisher color_write_sta_pub_;
+
   ros::Subscriber grip_joint_state_sub_;
   ros::Subscriber write_msg_sub;
   ros::Subscriber write_status_sub;
@@ -47,7 +49,7 @@ public:
   ros::Subscriber present_pos_msg_sub;
   ros::Subscriber alp_msg_sub;
   ros::Subscriber next_msg_sub;
-
+  ros::Subscriber color_msgs_sub;
 
   void initialize();
   void process();
@@ -57,6 +59,7 @@ public:
   void PresentPositionMsgCallback(const geometry_msgs::Pose::ConstPtr &msg);
   void alpMsgCallback(const std_msgs::String::ConstPtr &msg);
   void NextMsgCallback(const std_msgs::String::ConstPtr &msg);
+  void ColorMsgCallback(const std_msgs::String::ConstPtr &msg);
   std_msgs::Float64 grip_joint_comm;
   std_msgs::String Alp_msg;
 
@@ -74,6 +77,8 @@ public:
   int cnt_test;
 
   int test;
+  int red_cnt;
+  int blue_cnt;
 private:
    ros::NodeHandle ros_node_;
 
