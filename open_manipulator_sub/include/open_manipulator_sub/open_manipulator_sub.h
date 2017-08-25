@@ -103,6 +103,7 @@ public:
   int test_flag;
   int test_flag2;
   int watch_cnt;
+  int count;
 
 private:
    ros::NodeHandle ros_node_;

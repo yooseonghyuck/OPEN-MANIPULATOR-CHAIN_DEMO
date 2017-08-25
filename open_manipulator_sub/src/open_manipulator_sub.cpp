@@ -61,6 +61,7 @@ void OpenManipulatorSub::initialize()
   next_cnt =0;
   test_cnt =0;
   test_flag=0;
+  count=0;
 
 
 }
@@ -138,7 +139,7 @@ void OpenManipulatorSub::testMsgCallback(const std_msgs::String::ConstPtr &msg)
 
      Alp_msg.data = "r";
 
-     if(cnt==0 && flag ==0)
+     if(cnt==0 && flag ==0 )
      {
        if(test==0)
        {
@@ -4667,6 +4668,16 @@ void OpenManipulatorSub::process()
        work_status_pub.publish(work_msg);
        point_kinematics_msg_pub.publish(kinematics_msg);
 
+       count =0;
+       while(true)
+       {
+         if(count ==500)
+         {
+           break;
+         }
+         count++;
+       }
+
        std_msgs::String test_mode_status_msg;
        test_mode_status_msg.data = "testing";
        test_mode_status_pub.publish(test_mode_status_msg);
@@ -7189,6 +7200,15 @@ void OpenManipulatorSub::process()
        work_status_pub.publish(work_msg);
        point_kinematics_msg_pub.publish(kinematics_msg);
 
+       while(true)
+       {
+         if(count==500)
+         {
+           break;
+         }
+          count++;
+
+       }
        std_msgs::String test_mode_status_msg;
        test_mode_status_msg.data = "testing";
        test_mode_status_pub.publish(test_mode_status_msg);
@@ -7230,7 +7250,7 @@ void OpenManipulatorSub::process()
        {
          ROS_INFO("wait");
          count++;
-         if(i==100)
+         if(i==50)
          {
            ROS_INFO("initial position");
            std_msgs::String ini_msg;
@@ -7589,33 +7609,8 @@ void OpenManipulatorSub::process()
 
 
       }
-      else if(test_cnt==7 && test_flag==1)
-      {
-
-/*
-        for(int i; i<2000;i++)
-        {
-          if(i==1000)
-          {
-
-            std_msgs::String test_mode_status_msg;
-            test_mode_status_msg.data = "testing";
-            test_mode_status_pub.publish(test_mode_status_msg);
-            break;
-          }
-        }
 
 
-*/
-
-
-        write_flag =0;
-        cnt =0;
-        test=0;
-
-
-
-      }
 
 
       }
@@ -7749,7 +7744,7 @@ void OpenManipulatorSub::process()
     ROS_INFO("8");
     kinematics_msg.position.x = present_position.position.x;
     kinematics_msg.position.y = present_position.position.y;
-    kinematics_msg.position.z = present_position.position.z -0.0045 -test*0.00015;
+    kinematics_msg.position.z = present_position.position.z -0.0042 -test*0.00015;
     point_kinematics_msg_pub.publish(kinematics_msg);
 
     std_msgs::String work_msg;
