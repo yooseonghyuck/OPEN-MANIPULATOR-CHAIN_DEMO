@@ -279,7 +279,8 @@ void BaseModule::queueThread()
 
                                                            
 
-
+  ros::Subscriber color_write_sta_sub   = ros_node.subscribe("/robotis/sub/color_sta_msgs",100,
+                                                             &BaseModule::ColorWriteStatusCallback,this);
   /* service */
 //  ros::ServiceServer get_joint_pose_server = ros_node.advertiseService("/robotis/manipulation/get_joint_pose",
 //                                                                       &BaseModule::getJointPoseCallback, this);
@@ -591,6 +592,31 @@ void BaseModule::kinematicsPoseMsgCallback(const geometry_msgs::Pose::ConstPtr& 
 }
 void BaseModule::jointPosMsgCallback(const sensor_msgs::JointState::ConstPtr& msg)
 {
+
+  mov_time_ = 0.7;
+  int joint_size = msg->name.size();
+  //  BaseModule::mov_time_ = 3.0;
+  if (enable_ == false)
+    return;
+
+  if(is_moving_ == false)
+  {
+
+    joint_state_->joint_pose_msg_ = *msg;
+
+
+    generationTraj();
+
+    traj_generate_tread_ = new boost::thread(boost::bind(&BaseModule::goalPoseTrahGenerationProc, this));
+    delete traj_generate_tread_;
+  }
+  else
+  {
+    ROS_INFO("previous task is alive");
+  }
+
+  return;
+
     mov_time_ = 0.7;
   int joint_size = msg->name.size();
 //  BaseModule::mov_time_ = 3.0;
@@ -614,6 +640,7 @@ void BaseModule::jointPosMsgCallback(const sensor_msgs::JointState::ConstPtr& ms
    }
 
  return;
+
 }
 /*
 void BaseModule::generateJointTrajProcess()
@@ -795,7 +822,9 @@ void BaseModule::goalPoseTrahGenerationProc()
                                                                 control_cycle_sec_,
                                                                 mov_time_);
 
-                                                                
+                                                                 tar_value, 0.0, 0.0,
+                                                                 control_cycle_sec_,
+                                                                 mov_time_);
 
     goal_joint_tra_.block(0, id, all_time_steps_, 1) = tra;
   }
@@ -949,7 +978,7 @@ void BaseModule::taskTrajGenerateProc()
 //      tar_value = goal_kinematics_pose_msg_.pose.position.y;
 //    else if (dim == 2)
 //      tar_value = goal_kinematics_pose_msg_.pose.position.z;
-
+>>>>>>> 91350a3fe69e34215849fad0d1176151139fdfb3
 
     Eigen::MatrixXd tra = robotis_framework::calcMinimumJerkTra(ini_value, 0.0, 0.0,
                                                                 target[dim], 0.0, 0.0,
@@ -1259,4 +1288,3 @@ void BaseModule::publishStatusMsg(unsigned int type, std::string msg)
 
   status_msg_pub_.publish(status);
 }
-

@@ -41,6 +41,11 @@ public:
   void kinematicsPoseMsgCallback(const geometry_msgs::Pose::ConstPtr& msg);
   void WorkStatusMsgCallback(const std_msgs::String::ConstPtr& msg);
   void ColorWriteStatusCallback(const std_msgs::String::ConstPtr& msg);
+
+  void TestModeStatusCallback(const std_msgs::String::ConstPtr& msg);
+  void testMsgCallback(const std_msgs::String::ConstPtr& msg);
+
+
 //  bool getJointPoseCallback(thormang3_manipulation_module_msgs::GetJointPose::Request &req,
 //                            thormang3_manipulation_module_msgs::GetJointPose::Response &res);
 //  bool getKinematicsPoseCallback(thormang3_manipulation_module_msgs::GetKinematicsPose::Request &req,
@@ -91,6 +96,9 @@ private:
   ros::Publisher  present_pos_pub;
   ros::Publisher  color_msgs_pub;
 
+  ros::Publisher  test_msg_pub;
+
+
   /* joint state */
   Eigen::VectorXd present_joint_position_;
   Eigen::VectorXd goal_joint_position_;
@@ -121,6 +129,12 @@ private:
   int   flag;
   int   flag2;
 
+  int   test_flag;
+  int   test_flag2;
+  int   watch_dog_cnt;
+
+
+
 
   Eigen::MatrixXd ik_target_position_;
   Eigen::MatrixXd ik_start_rotation_;
@@ -137,3 +151,4 @@ private:
 }
 
 #endif /* OPEN_MANIPULATOR_BASE_MODULE_H_ */
+

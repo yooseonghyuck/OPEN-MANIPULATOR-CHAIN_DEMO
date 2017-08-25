@@ -73,7 +73,8 @@ private:
   ros::Publisher alp_pub_;
   ros::Publisher test_msg_pub;
 
-
+  ros::Publisher twist_pub_;
+  ros::Publisher alp_pub_;
 
 
 };
@@ -445,4 +446,3 @@ void TeleopArm::keyLoop()
 
   return;
 }
-

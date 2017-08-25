@@ -76,7 +76,8 @@ public:
   std_msgs::String Alp_msg;
   std_msgs::String alp;
 
-
+  std_msgs::Float64 grip_joint_comm;
+  std_msgs::String Alp_msg;
 
 
   geometry_msgs::Pose kinematics_msg;
@@ -111,4 +112,3 @@ private:
 
 }
 #endif // OPEN_MANPULATOR_SUB_H
-
