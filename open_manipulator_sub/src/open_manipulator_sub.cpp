@@ -1882,10 +1882,7 @@ void OpenManipulatorSub::next_position_set()
 
 void OpenManipulatorSub::process()
 {
-ROS_INFO("%d",test_cnt);
-ROS_INFO("----------------------");
-ROS_INFO("%d",test);
-ROS_INFO("----------------------");
+
 
   ////////////////////////// write a //////////////////////////////////////////////
 
@@ -7595,7 +7592,7 @@ ROS_INFO("----------------------");
       else if(test_cnt==7 && test_flag==1)
       {
 
-
+/*
         for(int i; i<2000;i++)
         {
           if(i==1000)
@@ -7609,7 +7606,7 @@ ROS_INFO("----------------------");
         }
 
 
-
+*/
 
 
         write_flag =0;
